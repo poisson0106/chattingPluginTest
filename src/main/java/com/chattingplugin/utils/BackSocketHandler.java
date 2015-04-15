@@ -10,12 +10,13 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import com.chattingplugin.pojo.PersonalOfflineMsg;
 import com.chattingplugin.pojo.UserInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class BackSocketHandler extends TextWebSocketHandler {
 	public static Map<String,WebSocketSession> sessionList = new HashMap<String,WebSocketSession>();
-	public static Map<String,List<String>> toSendMessageList = new HashMap<String,List<String>>();
+	public static List<PersonalOfflineMsg> toSendMessageList = new ArrayList<PersonalOfflineMsg>();
 	
 	private ObjectMapper objectMapper;
 	
@@ -57,13 +58,37 @@ public class BackSocketHandler extends TextWebSocketHandler {
 			usersession.sendMessage(message);
 		}
 		else{
-			if(toSendMessageList.containsKey(tmpMap.get("to")))
+			/*if(toSendMessageList.containsKey(tmpMap.get("to")))
 				toSendMessageList.get(tmpMap.get("to")).add(","+tmpMap.get("from")+":"+tmpMap.get("message"));
 			else{
 				// To finish a function to let user who is offline can get information when user is online
 				List<String> tmpStr = new ArrayList<String>();
 				tmpStr.add(tmpMap.get("from")+":"+tmpMap.get("message"));
 				toSendMessageList.put(tmpMap.get("to"), tmpStr);
+			}*/
+			PersonalOfflineMsg thisOfflineMsg = null;
+			for(PersonalOfflineMsg tmpOfflineMsg : toSendMessageList){
+				if(tmpOfflineMsg.getOwner().equals(tmpMap.get("to")))
+					thisOfflineMsg = tmpOfflineMsg;
+			}
+			if(thisOfflineMsg==null){
+				thisOfflineMsg = new PersonalOfflineMsg();
+				thisOfflineMsg.setOwner(tmpMap.get("to"));
+				Map<String,List<String>> tmpToSendMsg = thisOfflineMsg.getToSendMsg();
+				List<String> tmpMsgList = new ArrayList<String>();
+				tmpMsgList.add(tmpMap.get("message"));
+				tmpToSendMsg.put(tmpMap.get("from"), tmpMsgList);
+				thisOfflineMsg.setToSendMsg(tmpToSendMsg);
+				toSendMessageList.add(thisOfflineMsg);
+			}
+			else{
+				Map<String,List<String>> thisToSendMsg= thisOfflineMsg.getToSendMsg();
+				List<String> tmpMsgList = thisToSendMsg.get(tmpMap.get("from"));
+				tmpMsgList.add(tmpMap.get("message"));
+				thisToSendMsg.put(tmpMap.get("from"), tmpMsgList);
+				thisOfflineMsg.setToSendMsg(thisToSendMsg);
+				int thisMsgIndex = toSendMessageList.indexOf(thisOfflineMsg);
+				toSendMessageList.set(thisMsgIndex,thisOfflineMsg);
 			}
 		}
 	}
